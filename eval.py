@@ -41,34 +41,41 @@ if __name__ == "__main__":
                      (len(predicted), args.predicted.name))
 
     # Filter pairs so that every url only occurs once
-    pairs_s2t, pairs_t2s = {}, {}
+    seen_urls = set()
+    predicted_filtered = {}
     for su, tu in predicted:
-        if su not in pairs_s2t and tu not in pairs_t2s:
-            pairs_s2t[su] = tu
-            pairs_t2s[tu] = su
+        if su not in seen_urls and tu not in seen_urls:
+            seen_urls.add(su)
+            seen_urls.add(tu)
+
+            predicted_filtered[su] = tu
+            predicted_filtered[tu] = su
 
     sys.stderr.write(
-        "Keeping %d pairs after enforcing 1-1 rule\n" % (len(pairs_s2t)))
-    n_found = len(set(reference).intersection(pairs_s2t.items()))
+        "Keeping %d pairs after enforcing 1-1 rule\n" % (
+            len(predicted_filtered) / 2))
+
+    found_pairs = set(reference).intersection(predicted_filtered.items())
+    n_found = len(found_pairs)
     percent_found = n_found * 100. / len(reference)
     sys.stderr.write("Found %d (%3.2f%%) pairs from reference\n" %
                      (n_found, percent_found))
 
     # write wins and fails
     if args.fails:
-        for su, tu in set(reference).difference(pairs_s2t.items()):
-            if su in pairs_s2t:
+        for su, tu in set(reference).difference(predicted_filtered.items()):
+            if su in predicted_filtered:
                 args.fails.write("S2T MISMATCH: %s\t->\t%s\texpected: %s\n" %
-                                 (su, pairs_s2t[su], tu))
-            if tu in pairs_t2s:
+                                 (su, predicted_filtered[su], tu))
+            if tu in predicted_filtered:
                 args.fails.write("T2S MISMATCH: %s\t->\t%s\texpected: %s\n" %
-                                 (tu, pairs_t2s[tu], tu))
-            if su not in pairs_s2t and tu not in pairs_t2s:
+                                 (tu, predicted_filtered[tu], tu))
+            if su not in predicted_filtered and tu not in predicted_filtered:
                 args.fails.write("Missing: %s\t->\t%s\n" %
                                  (su, tu))
 
     if args.wins:
-        for su, tu in set(reference).intersection(pairs_s2t.items()):
+        for su, tu in set(reference).intersection(predicted_filtered.items()):
             args.wins.write("%s\t%s\n" % (su, tu))
 
     sys.exit()
