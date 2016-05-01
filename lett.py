@@ -12,10 +12,11 @@ Page = namedtuple(
 
 def read_lett_iter(f, decode=True):
     fh = f
+    fh.seek(0)
     if f.name.endswith('.gz'):
         fh = gzip.GzipFile(fileobj=fh, mode='r')
     for line in fh:
-        lang, mine, enc, url, html, text = line[:-1].split("\t")
+        lang, mime, enc, url, html, text = line[:-1].split("\t")
 
         html = base64.b64decode(html)
         text = base64.b64decode(text)
@@ -24,8 +25,26 @@ def read_lett_iter(f, decode=True):
             html = html.decode("utf-8")
             text = text.decode("utf-8")
 
-        p = Page(url, html, text, mine, enc, lang)
+        p = Page(url, html, text, mime, enc, lang)
         yield p
+
+
+def write_lett(page, fh):
+    html = page.html
+    if isinstance(html, unicode):
+        html = html.encode('utf-8')
+
+    text = page.text
+    if isinstance(text, unicode):
+        text = text.encode('utf-8')
+
+    fh.write("\t".join(
+        [page.lang,
+         page.mime_type,
+         page.encoding,
+         page.url,
+         base64.b64encode(html),
+         base64.b64encode(text)]) + "\n")
 
 
 def read_lett(f, source_language, target_language):

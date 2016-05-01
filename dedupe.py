@@ -2,7 +2,8 @@
 # -*- coding: utf-8 -*-
 
 from collections import defaultdict
-from lett import read_lett_iter
+from lett import read_lett_iter, write_lett
+import random
 
 
 def read_url_pairs(fh):
@@ -35,6 +36,8 @@ if __name__ == "__main__":
     parser.add_argument('-train', help='training url pairs', required=True,
                         type=argparse.FileType('r'))
     parser.add_argument('-out', help='output file',
+                        type=argparse.FileType('w'))
+    parser.add_argument('-deduped', help='output file for deduped lett',
                         type=argparse.FileType('w'))
     parser.add_argument('-multipairs', help='output file',
                         type=argparse.FileType('w'))
@@ -73,6 +76,34 @@ if __name__ == "__main__":
         seen_s = {}
         seen_t = {}
         n_multi = 0
+
+        if args.deduped:
+            # select urls to keep
+            keep_urls = set()
+
+            for h, urls in hash2url_s.iteritems():
+                urls = set(urls)
+                if urls.intersection(source_urls):
+                    assert len(urls.intersection(source_urls)) == 1
+                    keep_urls |= urls & source_urls
+                else:
+                    # pick a random URL
+                    keep_urls.add(random.choice(list(urls)))
+
+            for h, urls in hash2url_t.iteritems():
+                urls = set(urls)
+                if urls.intersection(target_urls):
+                    assert len(urls.intersection(target_urls)) == 1
+                    keep_urls |= urls & target_urls
+                else:
+                    # pick a random URL
+                    keep_urls.add(random.choice(list(urls)))
+
+            assert len(keep_urls) == len(hash2url_s) + len(hash2url_t)
+
+            for page in read_lett_iter(lett_file):
+                if page.url in keep_urls:
+                    write_lett(page, args.deduped)
 
         for su, tu in train_pairs:
             if su in seen_s:
